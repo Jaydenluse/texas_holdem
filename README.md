@@ -20,3 +20,7 @@ use of ANSI color codes for a vibrant, easy-to-read interface
 
 
 This project serves as both a fun game and an educational resource for those interested in advanced Bash scripting or terminal-based game development. It's a great starting point for further enhancements like network play, advanced AI, or full poker hand evaluation.
+
+----------------
+
+<img width="489" alt="Screenshot 2024-08-04 at 7 57 21 PM" src="https://github.com/user-attachments/assets/269aa78e-57bd-4cc6-a0fd-c14e64a94690">
