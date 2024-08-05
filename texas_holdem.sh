@@ -1,5 +1,7 @@
 #!/bin/bash
 
+source "$(dirname "$0")/hand_evals.sh"
+
 # Color functions
 red() { echo -e "\033[1;31m$*\033[0m"; }
 green() { echo -e "\033[1;32m$*\033[0m"; }
@@ -387,33 +389,67 @@ display_all_hands() {
     echo
 }
 
-# Update evaluate_hands function (simplified for now)
+# Update the evaluate_hands function
 evaluate_hands() {
     echo "Revealing all hands..."
     display_table "true"
     echo
 
-    echo "Hand evaluation not implemented. Splitting pot equally."
-    local active_players=1  # Start with 1 for the human player
-    for opponent in "${opponents[@]}"; do
-        IFS=':' read -r name chips card1 card2 <<< "$opponent"
-        if [[ "$card1" != "folded" ]]; then
-            ((active_players++))
-        fi
-    done
-    
-    local split_amount=$((pot / active_players))
-    player_chips=$((player_chips + split_amount))
-    
+    local best_hand=""
+    local winners=()
+
+    # Evaluate player's hand
+    local player_full_hand=(${player_hand[@]} ${community_cards[@]})
+    local player_score=$(evaluate_hand "${player_full_hand[@]}")
+    echo "Debug: Player's hand: ${player_full_hand[@]}"
+    echo "Debug: Player's score: $player_score"
+    best_hand="$player_score"
+    winners+=("Player")
+
+    # Evaluate opponents' hands
     for i in "${!opponents[@]}"; do
         IFS=':' read -r name chips card1 card2 <<< "${opponents[$i]}"
         if [[ "$card1" != "folded" ]]; then
-            chips=$((chips + split_amount))
-            opponents[$i]="$name:$chips:$card1:$card2"
+            local opponent_full_hand=("$card1" "$card2" "${community_cards[@]}")
+            local opponent_score=$(evaluate_hand "${opponent_full_hand[@]}")
+            echo "Debug: $name's hand: ${opponent_full_hand[@]}"
+            echo "Debug: $name's score: $opponent_score"
+            local comparison=$(compare_hands "$opponent_score" "$best_hand")
+            echo "Debug: Comparison result: $comparison"
+            
+            if [ "$comparison" -eq 1 ]; then
+                best_hand="$opponent_score"
+                winners=("$name")
+            elif [ "$comparison" -eq 0 ]; then
+                winners+=("$name")
+            fi
         fi
     done
-    
-    echo "Pot split equally among $active_players players. Each player receives $split_amount chips."
+
+    # Distribute pot
+    local num_winners=${#winners[@]}
+    local split_amount=$((pot / num_winners))
+
+    echo "Winner: ${winners[@]}"
+    echo "Winning hand: $(describe_hand $best_hand)"
+    echo "The winner receives $split_amount chips."
+
+    for winner in "${winners[@]}"; do
+        if [ "$winner" == "Player" ]; then
+            player_chips=$((player_chips + split_amount))
+        else
+            for i in "${!opponents[@]}"; do
+                IFS=':' read -r name chips card1 card2 <<< "${opponents[$i]}"
+                if [ "$name" == "$winner" ]; then
+                    chips=$((chips + split_amount))
+                    opponents[$i]="$name:$chips:$card1:$card2"
+                    break
+                fi
+            done
+        fi
+    done
+
+    pot=0
     echo
 }
 
